@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ResumeLens — AI Resume Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <span class="masthead-mark">◎</span>
+    <div class="masthead-text">
+      <h1>ResumeLens</h1>
+      <p class="masthead-sub">Reads your resume the way a machine and a recruiter both would</p>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+
+
+  <section class="intake" id="intake-panel">
+    <h2 class="panel-label"><span>01</span> Submit for analysis</h2>
+
+    <form id="analyze-form">
+      <label class="dropzone" id="dropzone" for="resume-file">
+        <input type="file" id="resume-file" name="resume" accept=".pdf,.docx,.txt" hidden />
+        <div class="dropzone-content">
+          <span class="dropzone-icon">⇪</span>
+          <p class="dropzone-title">Drop resume here</p>
+          <p class="dropzone-sub">PDF, DOCX or TXT · up to 8MB</p>
+          <p class="dropzone-filename" id="dropzone-filename"></p>
+        </div>
+      </label>
+
+      <label class="field-label" for="job-description">
+        Target job description <span class="optional-tag">optional</span>
+      </label>
+      <textarea id="job-description" name="job_description"
+        placeholder="Paste the job posting here to check keyword match and get role-specific questions..."></textarea>
+
+      <button type="submit" id="submit-btn" class="submit-btn">
+     <span class="btn-label">Scan Resume</span>
+      </button>
+
+      <p class="intake-note">Your resume is processed for this analysis only and is not stored.</p>
+    </form>
+  </section>
+
+  <!-- RIGHT: report panel -->
+  <section class="report" id="report-panel">
+
+    <div class="report-empty" id="report-empty">
+      <span class="empty-mark">◎</span>
+      <p>Your report will appear here once a resume is submitted.</p>
+    </div>
+
+    <div class="report-loading hidden" id="report-loading">
+      <div class="scan-line"></div>
+      <p id="loading-text">Reading document…</p>
+    </div>
+
+    <div class="report-error hidden" id="report-error">
+      <h3>Couldn't complete the diagnostic</h3>
+      <p id="error-message"></p>
+    </div>
+
+    <div class="report-content hidden" id="report-content">
+
+      <div class="score-hero">
+        <div class="dial-wrap">
+          <svg viewBox="0 0 220 140" class="dial">
+            <path d="M 20 120 A 90 90 0 0 1 200 120" class="dial-track" />
+            <path d="M 20 120 A 90 90 0 0 1 200 120" class="dial-fill" id="dial-fill" />
+            <line x1="110" y1="120" x2="110" y2="40" class="dial-needle" id="dial-needle" />
+            <circle cx="110" cy="120" r="7" class="dial-hub" />
+          </svg>
+          <div class="dial-readout">
+            <span class="dial-score" id="dial-score">0</span>
+            <span class="dial-max">/ 100 ATS</span>
+          </div>
+        </div>
+        <div class="score-meta">
+          <p class="score-name" id="candidate-name">Candidate</p>
+          <p class="score-level" id="experience-level"></p>
+          <p class="score-reasoning" id="score-reasoning"></p>
+        </div>
+      </div>
+
+      <p class="overall-summary" id="overall-summary"></p>
+
+      <div class="report-grid">
+
+        <article class="card">
+          <h3 class="card-title"><span>02</span> Skills detected</h3>
+          <div class="skill-block">
+            <p class="skill-group-label">Technical</p>
+            <div class="tag-row" id="skills-technical"></div>
+          </div>
+          <div class="skill-block">
+            <p class="skill-group-label">Tools &amp; technologies</p>
+            <div class="tag-row" id="skills-tools"></div>
+          </div>
+          <div class="skill-block">
+            <p class="skill-group-label">Soft skills</p>
+            <div class="tag-row" id="skills-soft"></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><span>03</span> Section coverage</h3>
+          <div class="section-cols">
+            <div>
+              <p class="section-sub-label good">Present</p>
+              <ul class="plain-list" id="sections-found"></ul>
+            </div>
+            <div>
+              <p class="section-sub-label bad">Missing</p>
+              <ul class="plain-list" id="sections-missing"></ul>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card-wide">
+          <h3 class="card-title"><span>04</span> Weak sections</h3>
+          <div id="weak-sections" class="weak-list"></div>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><span>05</span> Keyword gaps</h3>
+          <div class="tag-row" id="keyword-gaps"></div>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><span>06</span> Strengths</h3>
+          <ul class="plain-list check-list" id="strengths-list"></ul>
+        </article>
+
+        <article class="card card-wide">
+          <h3 class="card-title"><span>07</span> Suggested improvements</h3>
+          <ul class="suggestion-list" id="suggestions-list"></ul>
+        </article>
+
+        <article class="card card-wide">
+          <h3 class="card-title"><span>08</span> Likely interview questions</h3>
+          <div class="tabs" id="question-tabs">
+            <button class="tab-btn active" data-tab="technical">Technical</button>
+            <button class="tab-btn" data-tab="behavioral">Behavioral</button>
+            <button class="tab-btn" data-tab="role_specific">Role-specific</button>
+          </div>
+          <ol class="question-list" id="questions-technical"></ol>
+          <ol class="question-list hidden" id="questions-behavioral"></ol>
+          <ol class="question-list hidden" id="questions-role_specific"></ol>
+        </article>
+
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
