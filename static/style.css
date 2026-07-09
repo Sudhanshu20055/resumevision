@@ -426,3 +426,73 @@ textarea:focus, .dropzone:focus-within {
   font-size: 14px;
   line-height: 1.8;
 }
+@media (max-width: 768px){
+
+  .layout{
+      display:block;
+      padding:15px;
+  }
+
+  .intake{
+      position:static;
+      margin-bottom:20px;
+  }
+
+  .score-hero{
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      padding:20px;
+  }
+
+  .dial-wrap{
+      width:180px;
+      margin:0 auto 15px;
+  }
+
+  .dial{
+      width:180px;
+      height:115px;
+  }
+
+  .dial-readout{
+      position:relative;
+      bottom:auto;
+      margin-top:-8px;
+  }
+
+  .dial-score{
+      font-size:28px;
+  }
+
+  .score-meta{
+      min-width:100%;
+  }
+
+  .report-grid{
+      grid-template-columns:1fr;
+  }
+
+  .section-cols{
+      flex-direction:column;
+      gap:15px;
+  }
+
+  .tabs{
+      flex-wrap:wrap;
+  }
+
+  .tab-btn{
+      flex:1;
+      min-width:110px;
+  }
+
+  textarea{
+      min-height:130px;
+  }
+
+  .submit-btn{
+      width:100%;
+  }
+
+}
