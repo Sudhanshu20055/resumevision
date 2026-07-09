@@ -25,38 +25,66 @@ RESUME TEXT:
 {resume_text}
 ---
 {jd_block}
-Return ONLY a valid JSON object (no markdown code fences, no extra text) with
-EXACTLY this schema:
+Fill in the response fields based on this resume. Be specific to THIS
+resume's actual content. Do not invent experience that isn't there. If
+information is genuinely absent, say so plainly rather than guessing.
+Keep every string field free of unescaped quotes or line breaks that could
+break JSON formatting."""
 
-{{
-  "candidate_name": string or null,
-  "ats_score": integer from 0 to 100,
-  "ats_score_reasoning": short string explaining the score,
-  "extracted_skills": {{
-      "technical": [list of strings],
-      "soft": [list of strings],
-      "tools_and_technologies": [list of strings]
-  }},
-  "sections_found": [list of resume section names actually present, e.g. "Summary", "Experience"],
-  "missing_sections": [list of standard resume sections that are absent or should be added],
-  "weak_sections": [
-      {{"section": string, "issue": string, "suggestion": string}}
-  ],
-  "improvement_suggestions": [list of specific, actionable suggestions, at least 5],
-  "keyword_gaps": [list of important keywords/skills missing, especially relevant if a job description was provided],
-  "estimated_experience_level": one of "Entry-level", "Mid-level", "Senior", "Lead/Executive",
-  "strengths": [list of 3-5 genuine strengths of this resume],
-  "interview_questions": {{
-      "technical": [5 questions tailored to this candidate's stated skills],
-      "behavioral": [5 questions tailored to this candidate's experience],
-      "role_specific": [3-5 questions tailored to the target role if inferable]
-  }},
-  "overall_summary": short 2-3 sentence summary of the resume's readiness for job applications
-}}
-
-Be specific to THIS resume's actual content. Do not invent experience that
-isn't there. If information is genuinely absent, say so plainly rather than
-guessing."""
+_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "candidate_name": {"type": "string", "nullable": True},
+        "ats_score": {"type": "integer"},
+        "ats_score_reasoning": {"type": "string"},
+        "extracted_skills": {
+            "type": "object",
+            "properties": {
+                "technical": {"type": "array", "items": {"type": "string"}},
+                "soft": {"type": "array", "items": {"type": "string"}},
+                "tools_and_technologies": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["technical", "soft", "tools_and_technologies"],
+        },
+        "sections_found": {"type": "array", "items": {"type": "string"}},
+        "missing_sections": {"type": "array", "items": {"type": "string"}},
+        "weak_sections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "section": {"type": "string"},
+                    "issue": {"type": "string"},
+                    "suggestion": {"type": "string"},
+                },
+                "required": ["section", "issue", "suggestion"],
+            },
+        },
+        "improvement_suggestions": {"type": "array", "items": {"type": "string"}},
+        "keyword_gaps": {"type": "array", "items": {"type": "string"}},
+        "estimated_experience_level": {
+            "type": "string",
+            "enum": ["Entry-level", "Mid-level", "Senior", "Lead/Executive"],
+        },
+        "strengths": {"type": "array", "items": {"type": "string"}},
+        "interview_questions": {
+            "type": "object",
+            "properties": {
+                "technical": {"type": "array", "items": {"type": "string"}},
+                "behavioral": {"type": "array", "items": {"type": "string"}},
+                "role_specific": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["technical", "behavioral", "role_specific"],
+        },
+        "overall_summary": {"type": "string"},
+    },
+    "required": [
+        "ats_score", "ats_score_reasoning", "extracted_skills", "sections_found",
+        "missing_sections", "weak_sections", "improvement_suggestions",
+        "keyword_gaps", "estimated_experience_level", "strengths",
+        "interview_questions", "overall_summary",
+    ],
+}
 
 
 class GeminiAnalysisError(Exception):
@@ -78,6 +106,8 @@ def _get_model():
         generation_config={
             "temperature": 0.4,
             "response_mime_type": "application/json",
+            "response_schema": _RESPONSE_SCHEMA,
+            "max_output_tokens": 8192,
         },
     )
 
@@ -90,24 +120,21 @@ def _strip_code_fences(text: str) -> str:
     return text
 
 
+def _repair_json(text: str) -> str:
+    """Best-effort cleanup for near-valid JSON (trailing commas, stray text)."""
+    text = re.sub(r",\s*([\]}])", r"\1", text)
+    last_brace = text.rfind("}")
+    if last_brace != -1:
+        text = text[: last_brace + 1]
+    return text
+
+
 def analyze_resume(resume_text: str, job_description: str | None = None) -> dict:
     """
     Send resume text to Gemini and return a parsed analysis dict.
-
-    Args:
-        resume_text: plain text extracted from the uploaded resume.
-        job_description: optional job description to tailor the analysis
-                          (keyword gap matching, role-specific questions).
-
-    Returns:
-        Parsed JSON response as a Python dict.
-
-    Raises:
-        GeminiAnalysisError: on API failure or invalid/unparseable response.
     """
     model = _get_model()
 
-    # Guard against extremely long resumes blowing up the prompt.
     trimmed_resume = resume_text[:15000]
 
     if job_description and job_description.strip():
@@ -121,22 +148,31 @@ def analyze_resume(resume_text: str, job_description: str | None = None) -> dict
         jd_clause=jd_clause, resume_text=trimmed_resume, jd_block=jd_block
     )
 
-    try:
-        response = model.generate_content(prompt)
-        raw_text = response.text
-    except Exception as exc:
-        raise GeminiAnalysisError(f"Gemini API request failed: {exc}") from exc
+    last_error = None
+    for attempt in range(2):
+        try:
+            response = model.generate_content(prompt)
+            raw_text = response.text
+        except Exception as exc:
+            raise GeminiAnalysisError(f"Gemini API request failed: {exc}") from exc
 
-    if not raw_text:
-        raise GeminiAnalysisError("Gemini returned an empty response.")
+        if not raw_text:
+            last_error = "Gemini returned an empty response."
+            continue
 
-    cleaned = _strip_code_fences(raw_text)
+        cleaned = _strip_code_fences(raw_text)
 
-    try:
-        result = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise GeminiAnalysisError(
-            f"Couldn't parse Gemini's response as JSON: {exc}"
-        ) from exc
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
 
-    return result
+        try:
+            return json.loads(_repair_json(cleaned))
+        except json.JSONDecodeError as exc:
+            last_error = str(exc)
+            continue
+
+    raise GeminiAnalysisError(
+        f"Couldn't parse Gemini's response as JSON: {last_error}"
+    )
