@@ -1,100 +1,97 @@
-# ResumeLens
+# ResumeVision
 
-I built this because I kept hearing the same problem from friends applying
-for jobs — they'd send out resumes and just... never hear back, with zero
-idea why. No feedback, no idea if their resume was even getting past the
-ATS filters companies use before a human even looks at it.
+ResumeVision is an AI-powered resume analyzer that helps job seekers evaluate and improve their resumes using Google's Gemini API. It analyzes uploaded resumes, estimates ATS compatibility, identifies missing or weak sections, extracts skills, and provides personalized suggestions to increase the chances of getting shortlisted.
 
-So this is a small web app where you upload your resume and it uses
-Google's Gemini API to tell you:
+## Features
 
-- an ATS compatibility score (with reasoning, not just a random number)
-- what skills it picked up from your resume (technical / tools / soft skills)
-- which standard sections you're missing (Summary, Projects, etc.)
-- which sections exist but are weak, and how to fix them
-- keyword gaps if you paste in a job description you're targeting
-- a list of concrete things to improve
-- interview questions it thinks you'd likely get asked, based on your resume
+- ATS compatibility score with explanation
+- Resume summary
+- Technical, tools, and soft skills extraction
+- Missing resume section detection
+- Weak section analysis with suggestions
+- Keyword gap analysis using a job description
+- Personalized resume improvement recommendations
+- AI-generated interview questions
 
-## Stack
+## Tech Stack
 
-- Python + Flask on the backend
-- Google Gemini API for the actual analysis
-- pdfplumber for PDFs, python-docx for Word docs
-- plain HTML/CSS/JS on the frontend, no React or build tools, kept it simple
+- Python
+- Flask
+- Google Gemini API
+- HTML
+- CSS
+- JavaScript
+- pdfplumber
+- python-docx
 
-## Running it locally
+## Installation
 
-You'll need Python 3.10+.
+```bash
+git clone https://github.com/Sudhanshu20055/resumevision.git
+cd resumevision
 
-\`\`\`bash
-git clone <your-repo-url>
-cd resumelens
 python -m venv venv
-venv\Scripts\activate      # on Mac/Linux: source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+
 pip install -r requirements.txt
-\`\`\`
+```
 
-Grab a free API key from [Google AI Studio](https://aistudio.google.com/apikey),
-then:
+Create a `.env` file and add your Gemini API key.
 
-\`\`\`bash
-copy .env.example .env     # Mac/Linux: cp .env.example .env
-\`\`\`
+```env
+GEMINI_API_KEY=your_api_key
+```
 
-Open `.env` and drop your key in:
+Run the application:
 
-\`\`\`
-GEMINI_API_KEY=your_key_here
-\`\`\`
-
-Then just run it:
-
-\`\`\`bash
+```bash
 python app.py
-\`\`\`
+```
 
-and open `http://127.0.0.1:5000`.
+Open your browser:
 
-## How it's structured
+```
+http://127.0.0.1:5000
+```
 
-\`\`\`
-resumelens/
-├── app.py                  → Flask routes
-├── requirements.txt
-├── .env.example
-├── utils/
-│   ├── resume_parser.py    → pulls text out of the uploaded file
-│   └── gemini_analyzer.py  → builds the prompt + talks to Gemini
-├── templates/
-│   └── index.html
-└── static/
-    ├── style.css
-    └── script.js
-\`\`\`
+## Project Structure
 
-## What happens under the hood
+```
+resumevision/
+│── app.py
+│── requirements.txt
+│── templates/
+│── static/
+│── utils/
+└── README.md
+```
 
-1. You drop in a resume (PDF/DOCX/TXT), optionally paste a job description
-2. The backend extracts the raw text from whatever file you gave it
-3. That text gets sent to Gemini along with a prompt that forces it to
-   respond in a specific JSON structure (score, skills, gaps, etc.)
-4. The frontend takes that JSON and renders it — the score dial, skill
-   tags, section checklist, weak-section callouts, and the interview
-   question tabs at the bottom
+## Workflow
 
-## Things worth knowing
+1. Upload your resume (PDF, DOCX, or TXT).
+2. Optionally provide a job description.
+3. ResumeVision extracts the resume text.
+4. Gemini AI analyzes the content.
+5. The application generates:
+   - ATS Score
+   - Skills Analysis
+   - Missing Sections
+   - Keyword Gaps
+   - Resume Improvement Suggestions
+   - Interview Questions
 
-- Model defaults to `gemini-2.0-flash`, changeable via `GEMINI_MODEL` in
-  `.env` if you hit quota issues or want to try a different one
-- 8MB upload limit
-- Files get deleted right after text extraction, nothing gets stored
-- Scanned/image-based PDFs won't work well since there's no OCR — it needs
-  actual selectable text in the PDF
-- This is a dev-server setup, not meant for production as-is
+## Future Enhancements
 
-## If something breaks
+- Cover Letter Generator
+- LinkedIn Profile Review
+- Resume Template Suggestions
+- Multi-language Resume Analysis
 
-- `GEMINI_API_KEY is not set` → check your `.env` file actually has the key in it, not the placeholder
-- `429 quota exceeded` → your Google Cloud project probably needs billing linked, even though you won't get charged within free-tier limits
-- Upload fails silently → check file type (pdf/docx/txt only) and size (<8MB)
+## License
+
+This project is created for educational and learning purposes.
